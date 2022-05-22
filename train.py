@@ -15,7 +15,7 @@ from generator_model import Generator
 def train_fn(disc_H, disc_Z, gen_Z, gen_H, loader, opt_disc, opt_gen, l1, mse, d_scaler, g_scaler, epoch):
     H_reals = 0
     H_fakes = 0
-    loop = tqdm(loader, leave=True)
+    loop = tqdm(loader, leave=True, desc=f"Epoch {epoch}")
 
     for idx, (zebra, horse) in enumerate(loop):
         zebra = zebra.to(config.DEVICE)
