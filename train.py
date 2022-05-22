@@ -12,7 +12,7 @@ from discriminator_model import Discriminator
 from generator_model import Generator
 
 
-def train_fn(disc_H, disc_Z, gen_Z, gen_H, loader, opt_disc, opt_gen, l1, mse, d_scaler, g_scaler):
+def train_fn(disc_H, disc_Z, gen_Z, gen_H, loader, opt_disc, opt_gen, l1, mse, d_scaler, g_scaler, epoch):
     H_reals = 0
     H_fakes = 0
     loop = tqdm(loader, leave=True)
@@ -82,11 +82,37 @@ def train_fn(disc_H, disc_Z, gen_Z, gen_H, loader, opt_disc, opt_gen, l1, mse, d
         g_scaler.step(opt_gen)
         g_scaler.update()
 
-        if idx % 200 == 0:
-            save_image(fake_horse*0.5+0.5, f"saved_images/horse_{idx}.png")
-            save_image(fake_zebra*0.5+0.5, f"saved_images/zebra_{idx}.png")
+        if idx % 400 == 0:
+            save_image(fake_horse*0.5+0.5,
+                       f"saved_images/horse_fake_{idx}_epoch{epoch}.png")
+            save_image(horse,
+                       f"saved_images/horse_real_{idx}_epoch{epoch}.png")
+            save_image(fake_zebra*0.5+0.5,
+                       f"saved_images/zebra_fake_{idx}_epoch{epoch}.png")
+            save_image(zebra,
+                       f"saved_images/zebra_real_{idx}_epoch{epoch}.png")
 
         loop.set_postfix(H_real=H_reals/(idx+1), H_fake=H_fakes/(idx+1))
+
+
+def test(gen_X, gen_Y, loader):
+    pbar = tqdm(desc=f"Test", total=len(loader))
+
+    for idx, (X, Y) in enumerate(loader):
+        with torch.cuda.amp.autocast():
+            fake_X = gen_X(Y)
+            fake_Y = gen_Y(X)
+
+        # Save images to saved_images=
+        save_image(fake_X*0.5 + 0.5,
+                   f"saved_images/X_fake_{idx}_test_X_fake.png")
+        save_image(fake_Y*0.5 + 0.5,
+                   f"saved_images/Y_fake_{idx}_test_Y_fake.png")
+        save_image(X, f"saved_images/X_real_{idx}_test_X_real.png")
+        save_image(Y, f"saved_images/Y_real_{idx}_test_Y_real.png")
+        pbar.update(1)
+
+    pbar.close()
 
 
 def main():
@@ -150,7 +176,7 @@ def main():
 
     for epoch in range(config.NUM_EPOCHS):
         train_fn(disc_H, disc_Z, gen_Z, gen_H, loader,
-                 opt_disc, opt_gen, L1, mse, d_scaler, g_scaler)
+                 opt_disc, opt_gen, L1, mse, d_scaler, g_scaler, epoch)
 
         if config.SAVE_MODEL:
             save_checkpoint(gen_H, opt_gen, filename=config.CHECKPOINT_GEN_H)
@@ -159,6 +185,8 @@ def main():
                             filename=config.CHECKPOINT_CRITIC_H)
             save_checkpoint(disc_Z, opt_disc,
                             filename=config.CHECKPOINT_CRITIC_Z)
+
+    test(gen_H, gen_Z, val_loader)
 
 
 if __name__ == "__main__":
